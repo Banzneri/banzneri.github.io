@@ -78,6 +78,16 @@ const getColor = (tile) => {
   }
 };
 
+createFlagMap = () => {
+  let flagMap = Array.from(Array(height), () => new Array(width));
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      boardMap[y][x] = false;
+    }
+  }
+  return flagMap;
+};
+
 const drawBoard = (board, boardMap) => {
   const drawTile = (tile, tileSize, padding, y, x, color) => {
     ctx.font = "20px Arial";
@@ -136,6 +146,32 @@ const drawBoard = (board, boardMap) => {
   ctx.stroke();
 };
 
+const floodFill = (board, boardMap, x, y) => {
+  const yOutOfBounds = y < 0 || y >= board.length;
+  const xOutOfBounds = x < 0 || x >= board[0].length;
+  console.log(x, y);
+
+  if (yOutOfBounds || xOutOfBounds) return;
+  if (board[y][x] !== FREE_TILE) {
+    boardMap[y][x] = true;
+    return;
+  }
+  if (boardMap[y][x] === true) return;
+
+  boardMap[y][x] = true;
+
+  console.log(boardMap);
+
+  floodFill(board, boardMap, x + 1, y);
+  floodFill(board, boardMap, x - 1, y);
+  floodFill(board, boardMap, x, y + 1);
+  floodFill(board, boardMap, x, y - 1);
+  floodFill(board, boardMap, x + 1, y - 1);
+  floodFill(board, boardMap, x - 1, y + 1);
+  floodFill(board, boardMap, x + 1, y + 1);
+  floodFill(board, boardMap, x - 1, y - 1);
+};
+
 const clickListener = (event, board, boardMap) => {
   const translateMousePosition = (x, y) => {
     x /= rect.width;
@@ -155,7 +191,7 @@ const clickListener = (event, board, boardMap) => {
   if (board[realY][realX] === BOMB_TILE) {
     gameOver = true;
   } else {
-    boardMap[realY][realX] = true;
+    floodFill(board, boardMap, realX, realY);
   }
 
   drawBoard(board, boardMap);
