@@ -53,14 +53,14 @@ const createBoard = (numberOfBombs, width, height) => {
   return board;
 };
 
-const createBoardMap = (width, height) => {
-  let boardMap = Array.from(Array(height), () => new Array(width));
+const createBoardMask = (width, height) => {
+  let boardMask = Array.from(Array(height), () => new Array(width));
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      boardMap[y][x] = false;
+      boardMask[y][x] = false;
     }
   }
-  return boardMap;
+  return boardMask;
 };
 
 const getColor = (tile) => {
@@ -88,7 +88,7 @@ createFlagMap = () => {
   return flagMap;
 };
 
-const drawBoard = (board, boardMap) => {
+const drawBoard = (board, boardMask) => {
   const drawTile = (tile, tileSize, padding, y, x, color) => {
     ctx.font = "20px Arial";
     ctx.fillStyle = color;
@@ -121,7 +121,7 @@ const drawBoard = (board, boardMap) => {
       const boardX = x * tileSize;
       const boardY = y * tileSize;
 
-      if (!boardMap[y][x] && !gameOver) {
+      if (!boardMask[y][x] && !gameOver) {
         drawTile(0, tileSize, padding, y, x, "black");
         continue;
       }
@@ -146,33 +146,33 @@ const drawBoard = (board, boardMap) => {
   ctx.stroke();
 };
 
-const floodFill = (board, boardMap, x, y) => {
+const floodFill = (board, boardMask, x, y) => {
   const yOutOfBounds = y < 0 || y >= board.length;
   const xOutOfBounds = x < 0 || x >= board[0].length;
   console.log(x, y);
 
   if (yOutOfBounds || xOutOfBounds) return;
   if (board[y][x] !== FREE_TILE) {
-    boardMap[y][x] = true;
+    boardMask[y][x] = true;
     return;
   }
-  if (boardMap[y][x] === true) return;
+  if (boardMask[y][x] === true) return;
 
-  boardMap[y][x] = true;
+  boardMask[y][x] = true;
 
-  console.log(boardMap);
+  console.log(boardMask);
 
-  floodFill(board, boardMap, x + 1, y);
-  floodFill(board, boardMap, x - 1, y);
-  floodFill(board, boardMap, x, y + 1);
-  floodFill(board, boardMap, x, y - 1);
-  floodFill(board, boardMap, x + 1, y - 1);
-  floodFill(board, boardMap, x - 1, y + 1);
-  floodFill(board, boardMap, x + 1, y + 1);
-  floodFill(board, boardMap, x - 1, y - 1);
+  floodFill(board, boardMask, x + 1, y);
+  floodFill(board, boardMask, x - 1, y);
+  floodFill(board, boardMask, x, y + 1);
+  floodFill(board, boardMask, x, y - 1);
+  floodFill(board, boardMask, x + 1, y - 1);
+  floodFill(board, boardMask, x - 1, y + 1);
+  floodFill(board, boardMask, x + 1, y + 1);
+  floodFill(board, boardMask, x - 1, y - 1);
 };
 
-const clickListener = (event, board, boardMap) => {
+const clickListener = (event, board, boardMask) => {
   const translateMousePosition = (x, y) => {
     x /= rect.width;
     y /= rect.height;
@@ -191,20 +191,20 @@ const clickListener = (event, board, boardMap) => {
   if (board[realY][realX] === BOMB_TILE) {
     gameOver = true;
   } else {
-    floodFill(board, boardMap, realX, realY);
+    floodFill(board, boardMask, realX, realY);
   }
 
-  drawBoard(board, boardMap);
+  drawBoard(board, boardMask);
 };
 
 const init = () => {
   canvas = document.getElementById("canvas");
   ctx = canvas.getContext("2d");
   const board = createBoard(40, 16, 16);
-  const boardMap = createBoardMap(16, 16);
-  drawBoard(board, boardMap);
+  const boardMask = createBoardMask(16, 16);
+  drawBoard(board, boardMask);
   canvas.addEventListener("mousedown", (event) =>
-    clickListener(event, board, boardMap)
+    clickListener(event, board, boardMask)
   );
 };
 
