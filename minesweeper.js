@@ -63,6 +63,16 @@ const createBoardMask = (width, height) => {
   return boardMask;
 };
 
+const createFlagMask = (width, height) => {
+  let flagMask = Array.from(Array(height), () => new Array(width));
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      flagMask[y][x] = false;
+    }
+  }
+  return flagMask;
+};
+
 const getColor = (tile) => {
   switch (tile) {
     case 1:
@@ -78,18 +88,8 @@ const getColor = (tile) => {
   }
 };
 
-createFlagMap = () => {
-  let flagMap = Array.from(Array(height), () => new Array(width));
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      boardMap[y][x] = false;
-    }
-  }
-  return flagMap;
-};
-
-const drawBoard = (board, boardMask) => {
-  const drawTile = (tile, tileSize, padding, y, x, color) => {
+const drawBoard = (board, boardMask, flagMask) => {
+  const drawOpenTile = (tile, tileSize, padding, y, x, color) => {
     ctx.font = "20px Arial";
     ctx.fillStyle = color;
 
@@ -100,6 +100,17 @@ const drawBoard = (board, boardMask) => {
     );
   };
 
+  const drawMaskTile = (x, y, tileSize, padding, color) => {
+    const size = tileSize - 4;
+    ctx.fillStyle = color;
+    ctx.fillRect(
+      x * tileSize + (tileSize - size) / 2,
+      y * tileSize + (tileSize - size) / 2,
+      size,
+      size
+    );
+  };
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const width = canvas.width;
   const height = canvas.height;
@@ -107,13 +118,13 @@ const drawBoard = (board, boardMask) => {
   const padding = 0;
 
   for (let x = 0; x <= width; x += tileSize) {
-    ctx.moveTo(0.5 + x + padding, padding);
-    ctx.lineTo(0.5 + x + padding, height + padding);
+    ctx.moveTo(x + padding, padding);
+    ctx.lineTo(x + padding, height + padding);
   }
 
   for (let x = 0; x <= height; x += tileSize) {
-    ctx.moveTo(padding, 0.5 + x + padding);
-    ctx.lineTo(width + padding, 0.5 + x + padding);
+    ctx.moveTo(padding, x + padding);
+    ctx.lineTo(width + padding, x + padding);
   }
 
   for (let y = 0; y < board.length; y++) {
@@ -122,22 +133,22 @@ const drawBoard = (board, boardMask) => {
       const boardY = y * tileSize;
 
       if (!boardMask[y][x] && !gameOver) {
-        drawTile(0, tileSize, padding, y, x, "black");
+        drawMaskTile(x, y, tileSize, padding, "grey");
+        if (flagMask[y][x]) {
+          drawOpenTile("!!", tileSize, padding, y, x, "red");
+        }
         continue;
       }
 
       if (board[y][x] === BOMB_TILE) {
         ctx.moveTo(boardX + padding, boardY + padding);
-        ctx.lineTo(
-          boardX + tileSize + 0.5 + padding,
-          boardY + tileSize + 0.5 + padding
-        );
+        ctx.lineTo(boardX + tileSize + padding, boardY + tileSize + padding);
 
         ctx.moveTo(boardX + padding + tileSize, boardY + padding);
-        ctx.lineTo(boardX + 0.5 + padding, boardY + tileSize + 0.5 + padding);
+        ctx.lineTo(boardX + padding, boardY + tileSize + padding);
       } else if (board[y][x] !== FREE_TILE) {
         const tile = board[y][x];
-        drawTile(tile, tileSize, padding, y, x, getColor(tile));
+        drawOpenTile(tile, tileSize, padding, y, x, getColor(tile));
       }
     }
   }
@@ -149,7 +160,6 @@ const drawBoard = (board, boardMask) => {
 const floodFill = (board, boardMask, x, y) => {
   const yOutOfBounds = y < 0 || y >= board.length;
   const xOutOfBounds = x < 0 || x >= board[0].length;
-  console.log(x, y);
 
   if (yOutOfBounds || xOutOfBounds) return;
   if (board[y][x] !== FREE_TILE) {
@@ -159,8 +169,6 @@ const floodFill = (board, boardMask, x, y) => {
   if (boardMask[y][x] === true) return;
 
   boardMask[y][x] = true;
-
-  console.log(boardMask);
 
   floodFill(board, boardMask, x + 1, y);
   floodFill(board, boardMask, x - 1, y);
@@ -172,21 +180,27 @@ const floodFill = (board, boardMask, x, y) => {
   floodFill(board, boardMask, x - 1, y - 1);
 };
 
-const clickListener = (event, board, boardMask) => {
-  const translateMousePosition = (x, y) => {
-    x /= rect.width;
-    y /= rect.height;
-    x *= canvas.width;
-    y *= canvas.height;
-    const xInt = Math.floor(x / (canvas.width / board[0].length));
-    const yInt = Math.floor(y / (canvas.height / board.length));
-    return [xInt, yInt];
-  };
-
+const getMousePos = (x, y, board) => {
   const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  const [realX, realY] = translateMousePosition(x, y);
+  x = x - rect.left;
+  y = y - rect.top;
+  x /= rect.width;
+  y /= rect.height;
+  x *= canvas.width;
+  y *= canvas.height;
+  const xInt = Math.floor(x / (canvas.width / board[0].length));
+  const yInt = Math.floor(y / (canvas.height / board.length));
+  return [xInt, yInt];
+};
+
+const clickListener = (event, board, boardMask, flagMask) => {
+  const x = event.clientX;
+  const y = event.clientY;
+  const [realX, realY] = getMousePos(x, y, board);
+
+  if (flagMask[realY][realX]) {
+    return;
+  }
 
   if (board[realY][realX] === BOMB_TILE) {
     gameOver = true;
@@ -194,7 +208,16 @@ const clickListener = (event, board, boardMask) => {
     floodFill(board, boardMask, realX, realY);
   }
 
-  drawBoard(board, boardMask);
+  drawBoard(board, boardMask, flagMask);
+};
+
+const rightClickListener = (event, board, boardMask, flagMask) => {
+  event.preventDefault();
+  const x = event.pageX;
+  const y = event.pageY;
+  const [realX, realY] = getMousePos(x, y, board);
+  flagMask[realY][realX] = !flagMask[realY][realX];
+  drawBoard(board, boardMask, flagMask);
 };
 
 const init = () => {
@@ -202,10 +225,14 @@ const init = () => {
   ctx = canvas.getContext("2d");
   const board = createBoard(40, 16, 16);
   const boardMask = createBoardMask(16, 16);
-  drawBoard(board, boardMask);
-  canvas.addEventListener("mousedown", (event) =>
-    clickListener(event, board, boardMask)
+  const flagMask = createFlagMask(16, 16);
+  drawBoard(board, boardMask, flagMask);
+  canvas.addEventListener("click", (event) =>
+    clickListener(event, board, boardMask, flagMask)
   );
+  window.addEventListener("contextmenu", (event) => {
+    rightClickListener(event, board, boardMask, flagMask);
+  });
 };
 
 window.onload = init;
