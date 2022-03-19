@@ -7,12 +7,14 @@ let gameOver = false;
 const createBoard = (numberOfBombs, width, height) => {
   let board = Array.from(Array(height), () => new Array(width));
 
+  // Initialize board with free tiles
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       board[y][x] = FREE_TILE;
     }
   }
 
+  // Spawn bombs
   for (let i = 0; i < numberOfBombs; i++) {
     let randomX = Math.floor(Math.random() * width);
     let randomY = Math.floor(Math.random() * height);
@@ -25,6 +27,7 @@ const createBoard = (numberOfBombs, width, height) => {
     board[randomY][randomX] = BOMB_TILE;
   }
 
+  // Calculate the number of bombs around each tile
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       if (board[y][x] === BOMB_TILE) continue;
@@ -53,24 +56,24 @@ const createBoard = (numberOfBombs, width, height) => {
   return board;
 };
 
-const createBoardMask = (width, height) => {
-  let boardMask = Array.from(Array(height), () => new Array(width));
+const createMask = (width, height) => {
+  let mask = Array.from(Array(height), () => new Array(width));
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      boardMask[y][x] = false;
+      mask[y][x] = false;
     }
   }
-  return boardMask;
+  return mask;
 };
 
-const createFlagMask = (width, height) => {
-  let flagMask = Array.from(Array(height), () => new Array(width));
+const createFlags = (width, height) => {
+  let flags = Array.from(Array(height), () => new Array(width));
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      flagMask[y][x] = false;
+      flags[y][x] = false;
     }
   }
-  return flagMask;
+  return flags;
 };
 
 const getColor = (tile) => {
@@ -88,9 +91,9 @@ const getColor = (tile) => {
   }
 };
 
-const drawBoard = (board, boardMask, flagMask) => {
+const drawBoard = (board, mask, flags) => {
   const drawOpenTile = (tile, tileSize, padding, y, x, color) => {
-    ctx.font = "20px Arial";
+    ctx.font = "20px arial";
     ctx.fillStyle = color;
 
     ctx.fillText(
@@ -111,73 +114,70 @@ const drawBoard = (board, boardMask, flagMask) => {
     );
   };
 
+  const drawGrid = (tileSize, padding, height, width) => {
+    for (let x = 0; x <= width; x += tileSize) {
+      ctx.moveTo(x + padding, padding);
+      ctx.lineTo(x + padding, height + padding);
+    }
+
+    for (let x = 0; x <= height; x += tileSize) {
+      ctx.moveTo(padding, x + padding);
+      ctx.lineTo(width + padding, x + padding);
+    }
+
+    ctx.strokeStyle = "black";
+    ctx.stroke();
+  };
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const width = canvas.width;
   const height = canvas.height;
   const tileSize = canvas.width / board.length;
   const padding = 0;
 
-  for (let x = 0; x <= width; x += tileSize) {
-    ctx.moveTo(x + padding, padding);
-    ctx.lineTo(x + padding, height + padding);
-  }
-
-  for (let x = 0; x <= height; x += tileSize) {
-    ctx.moveTo(padding, x + padding);
-    ctx.lineTo(width + padding, x + padding);
-  }
+  drawGrid(tileSize, padding, height, width);
 
   for (let y = 0; y < board.length; y++) {
     for (let x = 0; x < board[0].length; x++) {
-      const boardX = x * tileSize;
-      const boardY = y * tileSize;
-
-      if (!boardMask[y][x] && !gameOver) {
+      if (!mask[y][x] && !gameOver) {
         drawMaskTile(x, y, tileSize, padding, "grey");
-        if (flagMask[y][x]) {
+        if (flags[y][x]) {
           drawOpenTile("!!", tileSize, padding, y, x, "red");
         }
         continue;
       }
 
       if (board[y][x] === BOMB_TILE) {
-        ctx.moveTo(boardX + padding, boardY + padding);
-        ctx.lineTo(boardX + tileSize + padding, boardY + tileSize + padding);
-
-        ctx.moveTo(boardX + padding + tileSize, boardY + padding);
-        ctx.lineTo(boardX + padding, boardY + tileSize + padding);
+        drawOpenTile("X", tileSize, padding, y, x, "black");
       } else if (board[y][x] !== FREE_TILE) {
         const tile = board[y][x];
         drawOpenTile(tile, tileSize, padding, y, x, getColor(tile));
       }
     }
   }
-
-  ctx.strokeStyle = "black";
-  ctx.stroke();
 };
 
-const floodFill = (board, boardMask, x, y) => {
+const floodFill = (board, mask, x, y) => {
   const yOutOfBounds = y < 0 || y >= board.length;
   const xOutOfBounds = x < 0 || x >= board[0].length;
 
   if (yOutOfBounds || xOutOfBounds) return;
   if (board[y][x] !== FREE_TILE) {
-    boardMask[y][x] = true;
+    mask[y][x] = true;
     return;
   }
-  if (boardMask[y][x] === true) return;
+  if (mask[y][x] === true) return;
 
-  boardMask[y][x] = true;
+  mask[y][x] = true;
 
-  floodFill(board, boardMask, x + 1, y);
-  floodFill(board, boardMask, x - 1, y);
-  floodFill(board, boardMask, x, y + 1);
-  floodFill(board, boardMask, x, y - 1);
-  floodFill(board, boardMask, x + 1, y - 1);
-  floodFill(board, boardMask, x - 1, y + 1);
-  floodFill(board, boardMask, x + 1, y + 1);
-  floodFill(board, boardMask, x - 1, y - 1);
+  floodFill(board, mask, x + 1, y);
+  floodFill(board, mask, x - 1, y);
+  floodFill(board, mask, x, y + 1);
+  floodFill(board, mask, x, y - 1);
+  floodFill(board, mask, x + 1, y - 1);
+  floodFill(board, mask, x - 1, y + 1);
+  floodFill(board, mask, x + 1, y + 1);
+  floodFill(board, mask, x - 1, y - 1);
 };
 
 const getMousePos = (x, y, board) => {
@@ -193,45 +193,65 @@ const getMousePos = (x, y, board) => {
   return [xInt, yInt];
 };
 
-const clickListener = (event, board, boardMask, flagMask) => {
+const handleTileRevealing = (event, board, mask, flags) => {
+  const checkVictory = () => {
+    for (let y = 0; y < board.length; y++) {
+      for (let x = 0; x < board[0].length; x++) {
+        if (!mask[y][x] && board[y][x] !== BOMB_TILE) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
   const x = event.clientX;
   const y = event.clientY;
   const [realX, realY] = getMousePos(x, y, board);
 
-  if (flagMask[realY][realX]) {
-    return;
-  }
+  if (flags[realY][realX]) return;
 
   if (board[realY][realX] === BOMB_TILE) {
     gameOver = true;
   } else {
-    floodFill(board, boardMask, realX, realY);
+    floodFill(board, mask, realX, realY);
   }
 
-  drawBoard(board, boardMask, flagMask);
+  drawBoard(board, mask, flags);
+
+  if (checkVictory()) {
+    alert("Victory");
+    return;
+  }
 };
 
-const rightClickListener = (event, board, boardMask, flagMask) => {
+const handleFlags = (event, board, mask, flags) => {
   event.preventDefault();
   const x = event.pageX;
   const y = event.pageY;
   const [realX, realY] = getMousePos(x, y, board);
-  flagMask[realY][realX] = !flagMask[realY][realX];
-  drawBoard(board, boardMask, flagMask);
+  flags[realY][realX] = !flags[realY][realX];
+  drawBoard(board, mask, flags);
 };
 
 const init = () => {
+  const width = 16;
+  const height = 16;
+  const bombs = 40;
+  const board = createBoard(bombs, width, height);
+  const mask = createMask(width, height);
+  const flags = createFlags(width, height);
+
   canvas = document.getElementById("canvas");
   ctx = canvas.getContext("2d");
-  const board = createBoard(40, 16, 16);
-  const boardMask = createBoardMask(16, 16);
-  const flagMask = createFlagMask(16, 16);
-  drawBoard(board, boardMask, flagMask);
+
+  drawBoard(board, mask, flags);
+
   canvas.addEventListener("click", (event) =>
-    clickListener(event, board, boardMask, flagMask)
+    handleTileRevealing(event, board, mask, flags)
   );
   window.addEventListener("contextmenu", (event) => {
-    rightClickListener(event, board, boardMask, flagMask);
+    handleFlags(event, board, mask, flags);
   });
 };
 
